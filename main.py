@@ -1,28 +1,47 @@
 import itertools
 import math
 import random
-
-NUMBER_EXPERIMENTS = 100000
-
-
-def expected_task_1(n: float, r: float):
-    return (n ** (2 * (2 ** r - 1))) / ((n + 1) ** (2 * (2 ** r - 1)))
+from statistics import NormalDist
+from decimal import Decimal
+NUMBER_EXPERIMENTS = 10000
 
 
-def task_1(): #wrong
+def expected_task_1(n: int, r: int):
+    dp = [[0] * 2 ** (r + 1) for _ in range(r + 1)]
+    dp[0][1] = 1
+    for i in range(1, r + 1):
+        for j in range(1, 2 ** i):
+            for k in range(1, 2 * j + 1):
+                if n - j > 0 and 2 * k >= j:
+                    dp[i][j] += dp[i - 1][k] * (n - j + 1) / (n + 1)
+    return sum(dp[r])
+
+
+def experiments(cur_n: int, n: int, cur_r: int, r: int):
+    if cur_r == r + 1:
+        return 1
+    people = set()
+    for i in range(cur_n):
+        first = random.randint(0, n)
+        second = random.randint(0, n)
+        while first == second:
+            second = random.randint(0, n)
+        people.add(first)
+        people.add(second)
+        if first == 0 or second == 0:
+            return 0
+    return experiments(len(people), n, cur_r + 1, r)
+
+
+def task_1():
     rs = [1, 3, 5, 7, 10, 12]
     ns = [100, 1000, 10000]
     for n, r in itertools.product(ns, rs):
         cnt = 0
         for _ in range(NUMBER_EXPERIMENTS):
-            was_pr = False
-            for _ in range(2 ** (r + 1)):
-                if random.randint(0, n) == 0:
-                    was_pr = True
-                    break
-            if was_pr:
-                cnt += 1
-        print(f'n={n} | r={r} | {1 - cnt / NUMBER_EXPERIMENTS} | expected {expected_task_1(n, r)}')
+            if experiments(1, n, 0, r):
+               cnt += 1
+        print(f'n={n} | r={r} | {cnt / NUMBER_EXPERIMENTS} | exp={expected_task_1(n, r)}')
 
 
 def expected_task_2(n: int):
@@ -45,7 +64,6 @@ def triangle_n(n: int):
 
 
 def task_2():
-    # generation random point in a triangle with angle pi/n
     for n in range(3, 20):
         print(f'n={n}: {triangle_n(n)} | expected={expected_task_2(n)}')
 
@@ -93,7 +111,50 @@ def task_3():
                   f'| expected = {expected_task_3(n, p, m, k)}')
 
 
+def dec_factorial(n: int):
+    res = Decimal(1)
+    for i in range(1, n + 1):
+        res = res * Decimal(i)
+    return res
+
+
+def dec_comb(n, k):
+    return (dec_factorial(n) / dec_factorial(k)) / dec_factorial(n - k)
+
+
+def accurate_result(n, p):
+    q = (1 - p)
+    left_bound = math.ceil(n / 2 - math.sqrt(n * p * q))
+    right_bound = math.floor(n / 2 + math.sqrt(n * p * q))
+    prob = Decimal(0)
+    for i in range(left_bound, right_bound + 1):
+        prob += dec_comb(n, i) * Decimal(p) ** i * Decimal(q) ** (n - i)
+    return prob
+
+
+def approximate_result(n, p):
+    c = (math.sqrt(n) * (1 - 2 * p)) / (2 * math.sqrt(p * (1 - p)))
+    x1 = c - 1
+    x2 = c + 1
+    return NormalDist().cdf(x2) - NormalDist().cdf(x1)
+
+
+def task_4():
+    ns = [10, 100, 1000, 10000]
+    ps = [0.001, 0.01, 0.1, 0.25, 0.5]
+    for n, p in itertools.product(ns, ps):
+        acc = accurate_result(n, p)
+        app = approximate_result(n, p)
+        print(f'n={n}, p={p}')
+        print(f'Is npq > 10? {n * p * (1 - p) > 10}')
+        print(f'Expected={acc} | Approximate={app}')
+        err = abs(acc - Decimal(app))
+        print(f'Error: {err}')
+        print()
+
+
 if __name__ == '__main__':
-    # task_1()
+    task_1()
     # task_2()
-    task_3()
+    # task_3()
+    # task_4()
